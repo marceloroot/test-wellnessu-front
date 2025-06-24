@@ -34,7 +34,9 @@ export default function App() {
       (eventSourceRef.current as EventSource).close();
     }
 
-    const url = `http://localhost:3333/search?q=${encodeURIComponent(q)}`;
+    const url = `https://cortex-goldcare-backend-pr-1085.up.railway.app/search?q=${encodeURIComponent(
+      q
+    )}`;
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
