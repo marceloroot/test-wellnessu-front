@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
@@ -12,7 +13,7 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [finalHtml, setFinalHtml] = useState("");
   // Novo estado: summary por videoId
-  const [summaries, setSummaries] = useState({});
+  const [summaries, setSummaries] = useState<Record<string, string[]>>({});
 
   const lastCharRef = useRef("");
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -190,7 +191,7 @@ export default function App() {
             <p className="text-gray-500 italic">Nenhum vídeo encontrado.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {videos.map((video, index) => (
+              {videos.map((video: any, index) => (
                 <div
                   key={index}
                   className="cursor-pointer bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300"
@@ -215,7 +216,8 @@ export default function App() {
                     </a>
 
                     {/* Mostra os summaries relacionados a este videoId */}
-                    {summaries[video.videoId] &&
+                    {summaries?.[video?.videoId] &&
+                      Array.isArray(summaries[video.videoId]) &&
                       summaries[video.videoId].length > 0 && (
                         <div className="mt-3 pt-2 border-t border-gray-200 prose prose-sm max-w-none text-xs text-gray-500">
                           <strong>Resumo:</strong>
