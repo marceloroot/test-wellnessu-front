@@ -34,9 +34,7 @@ export default function App() {
       (eventSourceRef.current as EventSource).close();
     }
 
-    const url = `https://cortex-goldcare-backend-pr-1085.up.railway.app/search?q=${encodeURIComponent(
-      q
-    )}`;
+    const url = `http://localhost:3333/search?q=${encodeURIComponent(q)}`;
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
@@ -51,7 +49,18 @@ export default function App() {
     eventSource.addEventListener("videos", (e) => {
       try {
         const data = JSON.parse(e.data);
-        setVideos(data || []);
+
+        // ✅ Verifica se veio vazio
+        if (!Array.isArray(data) || data.length === 0) {
+          alert("Nenhum vídeo encontrado para sua pergunta.");
+          setStreamText((prev) => prev + "\n\n[Nenhum vídeo encontrado]");
+          setIsLoading(false);
+          setIsStreaming(false);
+          eventSource.close();
+          return;
+        }
+
+        setVideos(data);
         setIsLoading(false);
       } catch (err) {
         console.error("Erro ao parsear dados de vídeo:", err);
@@ -107,7 +116,7 @@ export default function App() {
     eventSource.onerror = (e) => {
       console.error("Erro SSE:", e);
       clearTimeout(safeTimeout); // Evita múltiplos avisos
-      setStreamText((prev) => prev + "\n\n[ERRO NA CONEXÃO]");
+      setStreamText((prev) => prev + "\n\n[Video nao encontrado]");
       setIsStreaming(false);
       eventSource.close();
     };
