@@ -54,8 +54,9 @@ export default function App() {
 
         // ✅ Verifica se veio vazio
         if (!Array.isArray(data) || data.length === 0) {
-          alert("Nenhum vídeo encontrado para sua pergunta.");
-          setStreamText((prev) => prev + "\n\n[Nenhum vídeo encontrado]");
+          setStreamText(
+            (prev) => prev + "\n\n [No videos found for your question.]"
+          );
           setIsLoading(false);
           setIsStreaming(false);
           eventSource.close();
