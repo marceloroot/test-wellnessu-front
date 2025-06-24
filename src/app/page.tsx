@@ -116,7 +116,7 @@ export default function App() {
     eventSource.onerror = (e) => {
       console.error("Erro SSE:", e);
       clearTimeout(safeTimeout); // Evita múltiplos avisos
-      setStreamText((prev) => prev + "\n\n[Video nao encontrado]");
+      setStreamText((prev) => prev + "\n\n");
       setIsStreaming(false);
       eventSource.close();
     };
