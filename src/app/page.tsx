@@ -12,13 +12,13 @@ export default function App() {
   const [question, setQuestion] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [finalHtml, setFinalHtml] = useState("");
-  // Novo estado: summary por videoId
+  const [endpoint, setEndpoint] = useState("search-complete"); // Novo estado para o endpoint
+
   const [summaries, setSummaries] = useState<Record<string, string[]>>({});
 
   const lastCharRef = useRef("");
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const startStream = (newQuestion: any) => {
     const q = newQuestion.trim();
     if (!q || isStreaming) return;
@@ -34,28 +34,24 @@ export default function App() {
       (eventSourceRef.current as EventSource).close();
     }
 
-    const url = `https://cortex-goldcare-backend-pr-1085.up.railway.app/search?q=${encodeURIComponent(
-      q
-    )}`;
+    const url = `http://localhost:3333/${endpoint}?q=${encodeURIComponent(q)}`;
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
-    // Timeout de segurança (ex: 15 segundos)
     const safeTimeout = setTimeout(() => {
       console.warn("Timeout: Finalizando conexão por segurança.");
       setStreamText((prev) => prev + "\n\n[STREAM FINALIZADO POR SEGURANÇA]");
       setIsStreaming(false);
       eventSource.close();
-    }, 60000); // Ajuste conforme necessário serve para caso de erro no back limita
+    }, 60000);
 
     eventSource.addEventListener("videos", (e) => {
       try {
         const data = JSON.parse(e.data);
 
-        // ✅ Verifica se veio vazio
         if (!Array.isArray(data) || data.length === 0) {
           setStreamText(
-            (prev) => prev + "\n\n [No videos found for your question.]"
+            (prev) => prev + "\n\n[Nenhum vídeo encontrado para sua pergunta.]"
           );
           setIsLoading(false);
           setIsStreaming(false);
@@ -96,8 +92,7 @@ export default function App() {
         const data = JSON.parse(e.data);
         const { videoId, content } = data;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setSummaries((prev: any) => {
+        setSummaries((prev) => {
           const current = prev[videoId] || [];
           return {
             ...prev,
@@ -110,22 +105,21 @@ export default function App() {
     });
 
     eventSource.addEventListener("end", () => {
-      clearTimeout(safeTimeout); // Cancela o timeout se o evento 'end' chegar
-      setFinalHtml(streamText); // Salva o texto completo
+      clearTimeout(safeTimeout);
+      setFinalHtml(streamText);
       setIsStreaming(false);
       eventSource.close();
     });
 
     eventSource.onerror = (e) => {
       console.error("Erro SSE:", e);
-      clearTimeout(safeTimeout); // Evita múltiplos avisos
+      clearTimeout(safeTimeout);
       setStreamText((prev) => prev + "\n\n");
       setIsStreaming(false);
       eventSource.close();
     };
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSubmit = (e: any) => {
     e.preventDefault();
     setVideos([]);
@@ -134,7 +128,7 @@ export default function App() {
 
   useEffect(() => {
     return () => {
-      const eventSource = eventSourceRef.current as EventSource | null;
+      const eventSource = eventSourceRef.current;
       if (eventSource) {
         eventSource.close();
       }
@@ -150,8 +144,28 @@ export default function App() {
         </p>
       </header>
 
+      {/* Campo de seleção de endpoint */}
+      <section className="max-w-4xl mx-auto px-4 py-4">
+        <label
+          htmlFor="endpoint-select"
+          className="block text-sm font-medium mb-2 text-gray-700"
+        >
+          Selecione o tipo de busca:
+        </label>
+        <select
+          id="endpoint-select"
+          value={endpoint}
+          onChange={(e) => setEndpoint(e.target.value)}
+          disabled={isStreaming}
+          className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800"
+        >
+          <option value="search-complete">New API Endpoint</option>
+          <option value="search">Legacy API Endpoint</option>
+        </select>
+      </section>
+
       {/* Campo de entrada */}
-      <section className="max-w-4xl mx-auto px-4 py-6">
+      <section className="max-w-4xl mx-auto px-4 py-2">
         <form
           onSubmit={handleSubmit}
           className="flex flex-col sm:flex-row gap-2"
@@ -180,7 +194,7 @@ export default function App() {
         {/* Streaming Text Section */}
         <section>
           <h2 className="text-2xl font-semibold mb-4 text-gray-700">
-            Resposta em Tempo Real
+            Real-Time Response
           </h2>
           <div className="bg-black text-green-400 p-6 rounded-lg font-mono text-sm h-80 overflow-y-auto border border-gray-700 shadow-inner prose prose-invert max-w-none">
             {streamText || finalHtml ? (
@@ -188,19 +202,20 @@ export default function App() {
                 dangerouslySetInnerHTML={{ __html: streamText || finalHtml }}
               />
             ) : (
-              "Aguardando resposta do servidor..."
+              "Waiting for server response...."
             )}
           </div>
         </section>
+
         {/* Vídeos Section */}
         <section>
           <h2 className="text-2xl font-semibold mb-4 text-gray-700">
-            Vídeos Recomendados
+            Recommended Videos
           </h2>
           {isLoading ? (
-            <p className="text-gray-500 italic">Carregando vídeos...</p>
+            <p className="text-gray-500 italic">Loading videos...</p>
           ) : videos.length === 0 ? (
-            <p className="text-gray-500 italic">Nenhum vídeo encontrado.</p>
+            <p className="text-gray-500 italic">No videos found.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {videos.map((video: any, index) => (
@@ -227,7 +242,6 @@ export default function App() {
                       Assistir no site
                     </a>
 
-                    {/* Mostra os summaries relacionados a este videoId */}
                     {summaries?.[video?.videoId] &&
                       Array.isArray(summaries[video.videoId]) &&
                       summaries[video.videoId].length > 0 && (
