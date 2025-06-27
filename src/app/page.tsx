@@ -68,7 +68,7 @@ IMPORTANT: The sentence must contain **between 300 and 350 characters**, includi
       params.append("promptVideo", promptVideo);
     }
 
-    const url = `http://localhost:3333/${endpoint}?${params.toString()}`;
+    const url = `https://cortex-goldcare-backend-pr-1085.up.railway.app/${endpoint}?${params.toString()}`;
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
