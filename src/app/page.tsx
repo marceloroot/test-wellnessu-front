@@ -1,20 +1,35 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @next/next/no-img-element */
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 
 export default function App() {
   const [streamText, setStreamText] = useState("");
   const [videos, setVideos] = useState([]);
-
   const [isLoading, setIsLoading] = useState(true);
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState("Should I take the COVID Vaccine?");
   const [isStreaming, setIsStreaming] = useState(false);
   const [finalHtml, setFinalHtml] = useState("");
-  const [endpoint, setEndpoint] = useState("search-complete"); // Novo estado para o endpoint
-
+  const [endpoint, setEndpoint] = useState("search-complete");
   const [summaries, setSummaries] = useState<Record<string, string[]>>({});
+
+  // Parâmetros configuráveis
+  const [certainty, setCertainty] = useState(0.4);
+  const [withLimit, setWithLimit] = useState(10);
+  const [prompt, setPrompt] = useState(
+    "Does the text below partially answer or somehow relate to the question?"
+  );
+  const [promptVideo, setPromptVideo] = useState(
+    `For each video returned in response to the user's question, generate a short sentence that directly answers the question based on the specific content of that video.
+The sentence must begin with:
+In the video, [name or speaker] says/explains/shows that…
+Do not summarize the whole video.
+Focus only on the part that directly responds to the user's question.
+Keep it concise, factual, and in the following style:
+In the video, Dr. Bryan says covid should be treated using ivermectin, azithromycin, and zinc.
+Only return one sentence per video, following this format strictly.
+IMPORTANT: The sentence must contain **between 300 and 350 characters**, including spaces and punctuation. This limit is strict. Do not return more or fewer characters.`
+  );
 
   const lastCharRef = useRef("");
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -31,12 +46,29 @@ export default function App() {
     setSummaries({});
 
     if (eventSourceRef.current) {
-      (eventSourceRef.current as EventSource).close();
+      eventSourceRef.current.close();
     }
 
-    const url = `https://cortex-goldcare-backend-pr-1085.up.railway.app/${endpoint}?q=${encodeURIComponent(
-      q
-    )}`;
+    const params = new URLSearchParams();
+    params.append("q", q);
+
+    if (certainty !== undefined) {
+      params.append("certainty", certainty.toString());
+    }
+
+    if (withLimit !== undefined) {
+      params.append("withLimit", withLimit.toString());
+    }
+
+    if (prompt) {
+      params.append("prompt", prompt);
+    }
+
+    if (promptVideo) {
+      params.append("promptVideo", promptVideo);
+    }
+
+    const url = `http://localhost:3333/${endpoint}?${params.toString()}`;
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
@@ -146,6 +178,95 @@ export default function App() {
         </p>
       </header>
 
+      {/* Configurações Adicionais */}
+      <section className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <h2 className="text-xl font-semibold mb-4 text-gray-700">
+          Configuration Parameters
+        </h2>
+
+        {/* Certainty e With Limit lado a lado */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <label
+                htmlFor="certainty"
+                className="block text-sm font-medium mb-1 text-gray-700"
+              >
+                Certainty Threshold (0.0 - 1.0)
+              </label>
+              <input
+                id="certainty"
+                type="number"
+                step="0.1"
+                min="0"
+                max="1"
+                value={certainty}
+                onChange={(e) => setCertainty(parseFloat(e.target.value))}
+                disabled={isStreaming}
+                className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800"
+              />
+            </div>
+            <div className="flex-1">
+              <label
+                htmlFor="with-limit"
+                className="block text-sm font-medium mb-1 text-gray-700"
+              >
+                Number of Videos to Fetch
+              </label>
+              <input
+                id="with-limit"
+                type="number"
+                min="1"
+                max="50"
+                value={withLimit}
+                onChange={(e) => setWithLimit(parseInt(e.target.value))}
+                disabled={isStreaming}
+                className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Prompt Fields - Um embaixo do outro */}
+        <div className="space-y-6">
+          {/* Prompt Field 1 */}
+          <div>
+            <label
+              htmlFor="prompt"
+              className="block text-sm font-medium mb-1 text-gray-700"
+            >
+              Prompt for video relevance filtering
+            </label>
+            <textarea
+              id="prompt"
+              rows={3}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              disabled={isStreaming}
+              className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800"
+            />
+          </div>
+
+          {/* Prompt Field 2 */}
+          <div>
+            <label
+              htmlFor="prompt-video"
+              className="block text-sm font-medium mb-1 text-gray-700"
+            >
+              Prompt for Video Summary
+            </label>
+            <textarea
+              id="prompt-video"
+              rows={5}
+              value={promptVideo}
+              onChange={(e) => setPromptVideo(e.target.value)}
+              disabled={isStreaming}
+              className="w-full px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Campo de seleção de endpoint */}
       <section className="max-w-4xl mx-auto px-4 py-4">
         <label
@@ -226,7 +347,11 @@ export default function App() {
                   className="cursor-pointer bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300"
                 >
                   <img
-                    src={video.coverImage}
+                    src={
+                      video.coverImage
+                        ? video.coverImage
+                        : "https://placehold.co/600x400?text=No+Image"
+                    }
                     alt={`Thumbnail do vídeo ${index}`}
                     className="w-full h-40 object-cover"
                   />
